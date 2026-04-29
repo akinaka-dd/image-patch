@@ -44,6 +44,7 @@ Labels can be assigned from 0 to 20, and each rectangle is drawn in a correspond
 <dd>Each cropped region is saved with a filename in the format "xxxx-Ci-N-x0-y0-x1-y1-w-h.png".
 Here, xxxx is inherited from the source image filename, Ci indicates the label (with i representing the label index), and N is a sequential number assigned to each region. 
 (x0, y0) and (x1, y1) denote opposite corners of the rectangle, while w and h indicate its width and height.
+Filenames are designed to be as unique as possible, making it easy to combine cropped regions from different source images.
 </dd>
 </dl>
 
