@@ -41,7 +41,7 @@ Click the `HTML` button to generate a thumbnail preview HTML file (rois.html) in
 
 
 ## Output structure
-- **Directory names**
+- **Directory names**  
 Cropped regions are saved in label-specific subdirectories within the output directory. Each label i corresponds to a subdirectory named "Category i".
 - **Filenames**  
 Each cropped region is saved with a filename in the format "xxxx-Ci-N-x0-y0-x1-y1-w-h.png".
