@@ -1,7 +1,7 @@
 # Image-patch
 Image-patch is an interactive tool for extracting and labeling rectangular regions from images.
 While the application is launched from the command line, the main workflow is performed through mouse-based operations.
-Users can drag to select regions, assign labels (0–20), and visualize them with color-coded overlays.
+Users can drag to select regions, assign user-defined numerical labels, and visualize them with color-coded overlays.
 The extracted regions can be organized and used as training data for machine learning workflows.
 
 ## Screenshot
