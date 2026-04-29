@@ -21,8 +21,8 @@ Rectangular regions can be selected as either squares or rectangles ("Sqr" or "R
 Labels can be assigned from 0 to 20, and each rectangle is drawn in a corresponding color on the image.
 
 ## View controls
-Use the ‘Zoom’ button to zoom in and out (via +/- controls or a dropdown menu). 
-Adjust line thickness with ‘LW’ and font size with ‘FS’.
+Use the `Zoom` button to zoom in and out (via +/- controls or a dropdown menu). 
+Adjust line thickness with `LW` and font size with `FS`.
 You can also pan the view in any direction, including diagonally, using a trackpad.
 Pinch-to-zoom is not supported due to Tkinter limitations.
 Instead, hold Ctrl and scroll (mouse wheel or two-finger gesture, vertical or horizontal) to zoom.
@@ -33,13 +33,13 @@ Instead, hold Ctrl and scroll (mouse wheel or two-finger gesture, vertical or ho
   <dt>Delete regions</dt>
   <dd>Right-click a rectangle to delete it. You will be prompted for confirmation before deletion.</dd>
   <dt>Count regions</dt>
-  <dd>Click the "COUNT" button to print region counts by label to the terminal where the program was launched.</dd>
+  <dd>Click the `COUNT` button to print region counts by label to the terminal where the program was launched.</dd>
   <dt>Renumber regions</dt>
-  <dd>Click the "RENUMBER" button to renumber labels after deletions.</dd>
+  <dd>Click the `RENUMBER` button to renumber labels after deletions.</dd>
   <dt>Save screenshots</dt>
-  <dd>Click the "SAVE SS" button to save a screenshot to the output directory specified at launch.</dd>
+  <dd>Click the `SAVE SS` button to save a screenshot to the output directory specified at launch.</dd>
   <dt>Generate HTML preview</dt>
-  <dd>Click the "HTML" button to generate a thumbnail preview HTML file (rois.html) in the output directory specified at launch.</dd>
+  <dd>Click the `HTML` button to generate a thumbnail preview HTML file (rois.html) in the output directory specified at launch.</dd>
 </dl>
 
 ## Output structure
