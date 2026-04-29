@@ -16,3 +16,5 @@ Screenshot using an image from [Takeda et al. (2020)](https://doi.org/10.1136/jc
 % image_patch.py image-filename output-directoryname 
 ```
 
+## Cropping with mouse interaction
+
