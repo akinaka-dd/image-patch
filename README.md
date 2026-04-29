@@ -29,7 +29,7 @@ Instead, hold Ctrl and scroll (mouse wheel or two-finger gesture, vertical or ho
 
 ## Managing cropped regions
 
-- **Delete regions**
+- **Delete regions** 
 Right-click a rectangle to delete it. You will be prompted for confirmation before deletion.
 
 <dl>
