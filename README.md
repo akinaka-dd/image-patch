@@ -23,8 +23,8 @@ Labels can be assigned from 0 to 20, and each rectangle is drawn in a correspond
 ## Managing cropped regions
 
 <dl>
-  <dt>Deletion</dt>
-  <dd>赤いフルーツ</dd>
+  <dt>Delete regions</dt>
+  <dd>Right-click a rectangle to delete it.</dd>
   <dt>オレンジ</dt>
   <dd>橙色のフルーツ</dd>
 </dl>
