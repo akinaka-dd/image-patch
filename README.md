@@ -48,5 +48,7 @@ Filenames are designed to be as unique as possible, making it easy to combine cr
 </dd>
 </dl>
 
-
+## Implementation
+This tool is implemented in Python using Tkinter for the graphical interface.  
+On macOS, it also uses tkmacosx to provide native-like UI behavior.
 
