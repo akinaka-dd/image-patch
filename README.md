@@ -9,7 +9,7 @@ and systematically store the resulting labeled data for use in machine learning 
 
 <kbd><img src="img/screenshot.jpg"></kbd>
 
-[Takeda et al., 2020](https://doi.org/10.1136/jclinpath-2020-206801)
+Image from [Takeda et al. (2020)](https://doi.org/10.1136/jclinpath-2020-206801).
 
 ## Command line usage
 ```
