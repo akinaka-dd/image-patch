@@ -22,3 +22,10 @@ Labels can be assigned from 0 to 20, and each rectangle is drawn in a correspond
 
 ## Managing cropped regions
 
+<dl>
+  <dt>リンゴ</dt>
+  <dd>赤いフルーツ</dd>
+  <dt>オレンジ</dt>
+  <dd>橙色のフルーツ</dd>
+</dl>
+
