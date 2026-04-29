@@ -62,6 +62,6 @@ This application requires the following dependencies:
 - Tkinter (usually included with Python)  
 - tkmacosx (macOS only)
 
-## Supported environment
+## Supported environments
 
 While the application is designed to be cross-platform (Windows, Linux, and macOS), it has been tested only on macOS 26.3.
