@@ -12,7 +12,7 @@ and systematically store the resulting labeled data for use in machine learning 
 Screenshot using an image from [Takeda et al. (2020)](https://doi.org/10.1136/jclinpath-2020-206801).
 
 ## Command line usage
-```
+```4d
 % image_patch.py image-filename output-directoryname 
 ```
 
