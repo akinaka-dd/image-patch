@@ -1,4 +1,4 @@
-# Image-Patch
+# Image-patch
 **Extract labeled rectangular regions**
 
 Image-patch is a graphical application that enables users to crop rectangular regions from images, 
