@@ -35,3 +35,9 @@ Labels can be assigned from 0 to 20, and each rectangle is drawn in a correspond
   <dd>Click the "HTML" button to generate a thumbnail preview HTML file (rois.html) in the output directory specified at launch.</dd>
 </dl>
 
+## Output structure
+Cropped regions are saved in label-specific subdirectories within the output directory. Each label i corresponds to a subdirectory named Category-i.
+
+Each cropped region is saved with a filename in the format xxxx-Ci-<index>-x0-y0-x1-y1-w-h.png.
+Here, xxxx is inherited from the source image filename, and Ci indicates the label, where i represents the label index. 
+(x0, y0) and (x1, y1) denote opposite corners of the rectangle, while w and h indicate its width and height.
