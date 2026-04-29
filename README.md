@@ -30,30 +30,26 @@ Instead, hold Ctrl and scroll (mouse wheel or two-finger gesture, vertical or ho
 ## Managing cropped regions
 - **Delete regions**  
 Right-click a rectangle to delete it. You will be prompted for confirmation before deletion.
+- **Count regions**  
+Click the `COUNT` button to print region counts by label to the terminal where the program was launched.
+- **Renumber regions**  
+Click the `RENUMBER` button to renumber labels after deletions.
+- **Save screenshots**  
+Click the `SAVE SS` button to save a screenshot to the output directory specified at launch.
+- **Generate HTML preview**  
+Click the `HTML` button to generate a thumbnail preview HTML file (rois.html) in the output directory specified at launch.
 
-<dl>
-  <dt>Count regions</dt>
-  <dd>Click the `COUNT` button to print region counts by label to the terminal where the program was launched.</dd>
-  <dt>Renumber regions</dt>
-  <dd>Click the `RENUMBER` button to renumber labels after deletions.</dd>
-  <dt>Save screenshots</dt>
-  <dd>Click the `SAVE SS` button to save a screenshot to the output directory specified at launch.</dd>
-  <dt>Generate HTML preview</dt>
-  <dd>Click the `HTML` button to generate a thumbnail preview HTML file (rois.html) in the output directory specified at launch.</dd>
-</dl>
 
 ## Output structure
-
-<dl>
-<dt>Directory names</dt>
-<dd>Cropped regions are saved in label-specific subdirectories within the output directory. Each label i corresponds to a subdirectory named "Category i".</dd>
-<dt>Filenames</dt>
-<dd>Each cropped region is saved with a filename in the format "xxxx-Ci-N-x0-y0-x1-y1-w-h.png".
+- **Directory names**
+Cropped regions are saved in label-specific subdirectories within the output directory. Each label i corresponds to a subdirectory named "Category i".
+- **Filenames**  
+Each cropped region is saved with a filename in the format "xxxx-Ci-N-x0-y0-x1-y1-w-h.png".
 Here, xxxx is inherited from the source image filename, Ci indicates the label (with i representing the label index), and N is a sequential number assigned to each region. 
 (x0, y0) and (x1, y1) denote opposite corners of the rectangle, while w and h indicate its width and height.
 Filenames are designed to be as unique as possible, making it easy to combine cropped regions from different source images.
-</dd>
-</dl>
+
+
 
 ## Implementation
 This tool is implemented in Python using Tkinter for the graphical interface.
