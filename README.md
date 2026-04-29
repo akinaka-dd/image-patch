@@ -29,5 +29,9 @@ Labels can be assigned from 0 to 20, and each rectangle is drawn in a correspond
   <dd>Click the "COUNT" button to print region counts by label to the terminal where the program was launched.</dd>
   <dt>Renumber regions</dt>
   <dd>Click the "RENUMBER" button to renumber labels after deletions.</dd>
+  <dt>Save screenshots</dt>
+  <dd>Click the "SAVE SS" button to save a screenshot to the output directory specified at launch.</dd>
+  <dt>Generate HTML preview</dt>
+  <dd>Click the "HTML" button to generate an HTML file (rois.html) with thumbnail previews</dd>
 </dl>
 
