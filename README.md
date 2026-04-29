@@ -42,7 +42,7 @@ This is *a* pen.
 <dt>Directory names</dt>
 <dd>Cropped regions are saved in label-specific subdirectories within the output directory. Each label i corresponds to a subdirectory named "Category i".</dd>
 <dt>Filenames</dt>
-<dd>Each cropped region is saved with a filename in the format "`xxxx-Ci-N-x0-y0-x1-y1-w-h.png`".
+<dd>Each cropped region is saved with a filename in the format "xxxx-Ci-N-x0-y0-x1-y1-w-h.png".
 Here, xxxx is inherited from the source image filename, Ci indicates the label (with i representing the label index), and N is a sequential number assigned to each region. 
 (x0, y0) and (x1, y1) denote opposite corners of the rectangle, while w and h indicate its width and height.
 </dd>
