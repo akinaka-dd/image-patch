@@ -25,7 +25,7 @@ Labels can be assigned from 0 to 20, and each rectangle is drawn in a correspond
 <dl>
   <dt>Delete regions</dt>
   <dd>Right-click a rectangle to delete it.</dd>
-  <dt>オレンジ</dt>
-  <dd>橙色のフルーツ</dd>
+  <dt>Count regions by label</dt>
+  <dd>Region counts by label are printed to the terminal where the program was launched.</dd>
 </dl>
 
