@@ -37,7 +37,6 @@ Labels can be assigned from 0 to 20, and each rectangle is drawn in a correspond
 
 ## Output structure
 
-This is *a* pen.
 <dl>
 <dt>Directory names</dt>
 <dd>Cropped regions are saved in label-specific subdirectories within the output directory. Each label i corresponds to a subdirectory named "Category i".</dd>
@@ -46,7 +45,6 @@ This is *a* pen.
 Here, xxxx is inherited from the source image filename, Ci indicates the label (with i representing the label index), and N is a sequential number assigned to each region. 
 (x0, y0) and (x1, y1) denote opposite corners of the rectangle, while w and h indicate its width and height.
 </dd>
-  
 </dl>
 
 
