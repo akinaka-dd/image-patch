@@ -29,9 +29,10 @@ Instead, hold Ctrl and scroll (mouse wheel or two-finger gesture, vertical or ho
 
 ## Managing cropped regions
 
+- **Delete regions**
+Right-click a rectangle to delete it. You will be prompted for confirmation before deletion.
+
 <dl>
-  <dt>Delete regions</dt>
-  <dd>Right-click a rectangle to delete it. You will be prompted for confirmation before deletion.</dd>
   <dt>Count regions</dt>
   <dd>Click the `COUNT` button to print region counts by label to the terminal where the program was launched.</dd>
   <dt>Renumber regions</dt>
