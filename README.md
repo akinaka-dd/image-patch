@@ -38,7 +38,7 @@ Labels can be assigned from 0 to 20, and each rectangle is drawn in a correspond
 ## Output structure
 <dl>
 <dt>Directory names</dt>
-<dd>Cropped regions are saved in label-specific subdirectories within the output directory. Each label i corresponds to a subdirectory named "Category *i* ".</dd>
+<dd>Cropped regions are saved in label-specific subdirectories within the output directory. Each label i corresponds to a subdirectory named "Category _i_ ".</dd>
 <dt>Filenames</dt>
 <dd>Each cropped region is saved with a filename in the format "xxxx-Ci-N-x0-y0-x1-y1-w-h.png".
 Here, xxxx is inherited from the source image filename, Ci indicates the label (with i representing the label index), and N is a sequential number assigned to each region. 
