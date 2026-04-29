@@ -28,7 +28,7 @@ Pinch-to-zoom is not supported due to Tkinter limitations.
 Instead, hold Ctrl and scroll (mouse wheel or two-finger gesture, vertical or horizontal) to zoom.
 
 ## Managing cropped regions
-### Delete regions
+#### Delete regions
 Right-click a rectangle to delete it. You will be prompted for confirmation before deletion.
 
 <dl>
