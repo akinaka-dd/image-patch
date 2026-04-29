@@ -21,8 +21,8 @@ Rectangular regions can be selected as either squares or rectangles ("Sqr" or "R
 Labels can be assigned from 0 to 20, and each rectangle is drawn in a corresponding color on the image.
 
 ## View and display options
-
-
+Use the "Zoom" button to zoom in and out (via +/- controls or a dropdown menu).
+Adjust line thickness with "LW" and font size with "FS".
 
 ## Managing cropped regions
 
