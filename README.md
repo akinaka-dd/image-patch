@@ -5,11 +5,11 @@ Image-patch is a graphical application that enables users to crop rectangular re
 categorize each crop with user-defined labels, 
 and systematically store the resulting labeled data for use in machine learning training workflows.
 
-## Screen shot
+## Screenshot
 
 <kbd><img src="img/screenshot.jpg"></kbd>
 
-Image from [Takeda et al. (2020)](https://doi.org/10.1136/jclinpath-2020-206801).
+Screenshot using an image from [Takeda et al. (2020)](https://doi.org/10.1136/jclinpath-2020-206801).
 
 ## Command line usage
 ```
