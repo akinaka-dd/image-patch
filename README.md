@@ -21,14 +21,14 @@ Rectangular regions can be selected as either squares or rectangles ("Sqr" or "R
 Labels can be assigned from 0 to 20, and each rectangle is drawn in a corresponding color on the image.
 
 ## View controls
-- **Zoom**
+- **Zoom**  
 Use the `Zoom` button to zoom in and out (via +/- controls or a dropdown menu).
 Pinch-to-zoom is not supported due to Tkinter limitations. Instead, hold Ctrl and scroll (mouse wheel or two-finger gesture, vertical or horizontal) to zoom.
 - **LW (Line Width)**  
 Adjust line thickness using the `LW` button.
 - **FS (Font Size)**  
 Adjust font size using the `FS` button.
-- **Pan**
+- **Pan**  
 You can pan the view in any direction, including diagonally, using a trackpad.
 
 ## Managing cropped regions
