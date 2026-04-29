@@ -17,4 +17,4 @@ Screenshot using an image from [Takeda et al. (2020)](https://doi.org/10.1136/jc
 ```
 
 ## Cropping with mouse interaction
-
+Drag the mouse to select a rectangular region. Rectangular regions can be selected as either rectangles or squares ("rect" or "sqr").
