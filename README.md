@@ -26,6 +26,6 @@ Labels can be assigned from 0 to 20, and each rectangle is drawn in a correspond
   <dt>Delete regions</dt>
   <dd>Right-click a rectangle to delete it.</dd>
   <dt>Count regions by label</dt>
-  <dd>Region counts by label are printed to the terminal where the program was launched.</dd>
+  <dd>Click the ‘COUNT’ button to print region counts by label to the terminal where the program was launched.</dd>
 </dl>
 
