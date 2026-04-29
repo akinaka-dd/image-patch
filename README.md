@@ -3,3 +3,7 @@
 
 <kbd><img src="img/screenshot.jpg"></kbd>
 
+'''
+% image_patch.py image-filename output-directoryname 
+'''
+
