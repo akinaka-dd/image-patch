@@ -12,7 +12,7 @@ Screenshot using an image from [Takeda et al. (2020)](https://doi.org/10.1136/jc
 % image_patch.py image-filename output-directoryname 
 ```
 
-## Cropping with mouse interaction
+## Cropping with the mouse
 Drag the mouse to select a rectangular region. 
 Rectangular regions can be selected as either squares or rectangles ("Sqr" or "Rect").
 Labels can be assigned from 0 to 20, and each rectangle is drawn in a corresponding color on the image.
