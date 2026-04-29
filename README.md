@@ -43,7 +43,6 @@ Click the `SAVE SS` button to save a screenshot to the output directory specifie
 - **Generate HTML preview**  
 Click the `HTML` button to generate a thumbnail preview HTML file (rois.html) in the output directory specified at launch.
 
-
 ## Output structure
 - **Directory names**  
 Cropped regions are saved in label-specific subdirectories within the output directory. Each label i corresponds to a subdirectory named "Category i".
@@ -53,9 +52,13 @@ Here, xxxx is inherited from the source image filename, Ci indicates the label (
 (x0, y0) and (x1, y1) denote opposite corners of the rectangle, while w and h indicate its width and height.
 Filenames are designed to be as unique as possible, making it easy to combine cropped regions from different source images.
 
-
-
 ## Implementation
 This tool is implemented in Python using Tkinter for the graphical interface.
 On macOS, it also uses tkmacosx to provide native-like UI behavior.
+
+## Requirements
+This application requires the following dependencies:
+- Python 3.8 or later  
+- Tkinter (standard GUI library for Python)  
+- tkmacosx (used only on macOS to improve UI behavior)
 
