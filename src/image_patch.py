@@ -1,0 +1,1644 @@
+#!/usr/bin/env python3
+
+import sys
+import os
+import re
+import shutil
+import pathlib
+import numpy as np
+
+import glasbey
+import colorsys
+
+import matplotlib.pyplot as plt
+
+from PIL import Image, ImageTk
+import cv2
+
+import tkinter as tk
+from tkinter import ttk
+from tkinter import messagebox
+
+print("SYS PLATFORM", sys.platform)
+if sys.platform == "darwin":
+    import tkmacosx
+    tk_Button = tkmacosx.Button
+else:
+    tk_Button = tk.Button
+    
+def main():
+
+    root = tk.Tk()
+    app = Application(master=root)
+    
+    root.geometry("1280x800")
+    root.title("Image-Patch v1.0")
+    
+    app.mainloop()
+
+class ScrollableCanvasFrame(tk.Frame):
+
+    def __init__(self, parent, width, height):
+
+        tk.Frame.__init__(self, parent)
+
+        self.width = width
+        self.height = height
+
+        self.sb_y = ttk.Scrollbar(self, orient=tk.VERTICAL)
+        #self.sb_y.pack(side=tk.RIGHT, fill=tk.Y, expand=False)
+        self.sb_y.grid(row=0, column=1, sticky=tk.NS)
+
+        self.sb_x = ttk.Scrollbar(self, orient=tk.HORIZONTAL)
+        #self.sb_x.pack(side=tk.BOTTOM, fill=tk.X, expand=False)
+        self.sb_x.grid(row=1, column=0, sticky=tk.EW)
+        
+        self.canvas = tk.Canvas(self, bd=0, highlightthickness=0)
+        #self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.canvas.grid(row=0, column=0, sticky=tk.NSEW)
+
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(0, weight=1)        
+        
+        self.sb_x.config(command=self.canvas.xview)                
+        self.sb_y.config(command=self.canvas.yview)
+        
+        self.canvas["xscrollcommand"] = self.sb_x.set
+        self.canvas["yscrollcommand"] = self.sb_y.set
+
+        self.canvas.yview_moveto(0)
+        self.canvas.xview_moveto(0)
+
+        self.canvas.config(scrollregion=(0, 0, self.width, self.height))
+
+class Application(tk.Frame):
+
+    def __init__(self, master=None):
+        super().__init__(master)
+        self.master = master
+        self.pack(fill=tk.BOTH, expand=True)
+
+        args = sys.argv
+
+        self.ratio = 1.0
+        self.ratio_d = 0.05
+        self.category = 0
+        self.count_img = {} 
+
+        self.lw = 3
+        self.lw_min = 1
+        self.lw_d = 1
+
+        ww = int(self.lw * self.ratio)
+        uu = int(ww/2.0)
+        vv = int(ww*3.0)        
+        self.fs = vv
+        self.fs_max = 20
+        self.fs_min = 3
+        self.fs_d = 1        
+
+        self.region_type = 1
+
+        self.RID = {}
+        self.TID = {}
+        self.CID = {}
+
+        self.RID2TID = {}
+        self.TID2RID = {}
+
+        self.FILENAMES = {} # rid -> filename
+        
+        if len(args) > 1:
+            self.filename = args[1]
+        else:
+            print("error: no input file")
+            sys.exit()
+
+        self.pathname = pathlib.Path(self.filename)
+        self.basename = self.pathname.name
+        self.stemname = self.pathname.stem
+
+        self.stemname_nosp = self.stemname.replace(" ", "-")
+        self.basename_nosp = self.basename.replace(" ", "-")
+        
+        self.combo_ratio_option = []
+        self.combo_ratio_variable = tk.StringVar()
+        
+        #self.dirname = self.stemname
+        #self.dirname = "sample"
+
+        if len(args) > 2:
+            self.dirname = args[2]
+
+        else:
+            print("WORKING DIRECTORY")
+            sys.exit()
+
+        m = re.match(r"(.+)/$", self.dirname)
+        if m:
+            self.dirname = m.group(1)
+
+        print("DIRNAME", self.dirname)
+
+        pp = pathlib.Path(self.dirname)
+        if not pp.exists():
+            pp.mkdir(parents=True)
+
+        #print(self.filename, self.basename, self.stemname, self.dirname)
+
+        ###############
+        self.create_widgets()
+
+        if pp.exists():
+            self.load_rectangles()
+        else:
+            pp.mkdir(parents=True)
+            
+            print("Copy " + self.filename)
+            shutil.copy(self.filename, self.dirname + "/" + self.basename_nosp)
+
+    def create_widgets(self):
+
+        self.menubar = tk.Menu(self)
+        self.master.config(menu=self.menubar)
+
+        self.helpmenu = tk.Menu(self.menubar, tearoff=0)
+        self.menubar.add_cascade(label="Help", menu=self.helpmenu)
+        self.helpmenu.add_command(label="Ctrl-MouseWheelScroll: Zoom-in/out")
+        self.helpmenu.add_command(label="Ctrl-TwoFingerUp/Down: Zoom-in/out")
+
+
+        # file menu
+        
+        self.file_menu_frame = tk.Frame(self)
+
+        self.label_space_00 = tk.Label(self.file_menu_frame, width=0, text="")                
+        self.label_space_00.pack(side=tk.LEFT, pady=2)
+
+        if sys.platform == "darwin":        
+            self.button_quit = tkmacosx.Button(self.file_menu_frame, text="QUIT", bd=0, fg="red", bg="lightpink",
+                                               highlightbackground="red", activebackground="red", activeforeground="white",
+                                               relief=tk.SOLID, borderless=1, command=self.master.destroy, width=95)
+        else:
+            self.button_quit = tk_Button(self.file_menu_frame, text="QUIT", bd=0, fg="red", bg="lightpink",
+                                         highlightbackground="red", activebackground="red", activeforeground="white",
+                                         relief=tk.SOLID, command=self.master.destroy, width=7)
+
+        self.button_quit.pack(side=tk.LEFT, padx=2, pady=2)
+
+        self.label_space_01 = tk.Label(self.file_menu_frame, width=1, text="")                
+        self.label_space_01.pack(side=tk.LEFT, pady=2)
+
+
+        # self.button_load = tk.Button(self.file_menu_frame, text="LOAD", bd=0, fg="blue", bg="lightblue",
+        #                              highlightbackground="blue", activebackground="blue", activeforeground="white", relief=tk.SOLID, width=5)
+        # self.button_load.pack(side=tk.LEFT, padx=2, pady=2)
+
+        
+        # SAVE SS
+        if sys.platform == "darwin":        
+            self.button_save = tkmacosx.Button(self.file_menu_frame, text="SAVE SS", bd=0, fg="blue", bg="lightblue",
+                                         highlightbackground="blue", activebackground="blue", activeforeground="white",
+                                         relief=tk.SOLID, borderless=1, command=self.save_image, width=95)
+        else:
+            self.button_save = tk.Button(self.file_menu_frame, text="SAVE SS", bd=0, fg="blue", bg="lightblue",
+                                         highlightbackground="blue", activebackground="blue", activeforeground="white",
+                                         relief=tk.SOLID, command=self.save_image, width=7)
+        
+        self.button_save.pack(side=tk.LEFT, padx=2, pady=2)
+
+        # COUNT
+        if sys.platform == "darwin":                
+            self.button_count = tkmacosx.Button(self.file_menu_frame, text="COUNT", bd=0, fg="blue", bg="lightblue",
+                                                highlightbackground="blue", activebackground="blue", activeforeground="white",
+                                                relief=tk.SOLID, borderless=1, command=self.count_rectangles, width=95)
+        else:
+            self.button_count = tk.Button(self.file_menu_frame, text="COUNT", bd=0, fg="blue", bg="lightblue",
+                                                highlightbackground="blue", activebackground="blue", activeforeground="white",
+                                                relief=tk.SOLID, command=self.count_rectangles, width=7)
+        
+        self.button_count.pack(side=tk.LEFT, padx=2, pady=2)
+
+        # RENUMBER
+        if sys.platform == "darwin":                
+            self.button_renum = tkmacosx.Button(self.file_menu_frame, text="RENUMBER", bd=0, fg="blue", bg="lightblue",
+                                          highlightbackground="blue", activebackground="blue", activeforeground="white",
+                                                relief=tk.SOLID, borderless=1, command=self.renumber_rectangles, width=95)
+        else:
+            self.button_renum = tk.Button(self.file_menu_frame, text="RENUMBER", bd=0, fg="blue", bg="lightblue",
+                                          highlightbackground="blue", activebackground="blue", activeforeground="white",
+                                          relief=tk.SOLID, command=self.renumber_rectangles, width=7)
+        
+        self.button_renum.pack(side=tk.LEFT, padx=2, pady=2)
+
+
+        # HTML
+        if sys.platform == "darwin":                
+            self.button_html = tkmacosx.Button(self.file_menu_frame, text="HTML", bd=0, fg="blue", bg="lightblue",
+                                          highlightbackground="blue", activebackground="blue", activeforeground="white",
+                                                relief=tk.SOLID, borderless=1, command=self.save_html, width=95)
+        else:
+            self.button_html = tk.Button(self.file_menu_frame, text="HTML", bd=0, fg="blue", bg="lightblue",
+                                          highlightbackground="blue", activebackground="blue", activeforeground="white",
+                                          relief=tk.SOLID, command=self.save_html, width=7)
+        
+        self.button_html.pack(side=tk.LEFT, padx=2, pady=2)
+
+
+        # filename
+
+        self.label_space_01a = tk.Label(self.file_menu_frame, width=10, text="")                
+        self.label_space_01a.pack(side=tk.LEFT, pady=2)
+
+        self.label_filename = tk.Label(self.file_menu_frame, width=100, anchor="w", text="Filename: {}".format(self.pathname))
+        self.label_filename.pack(side=tk.LEFT, padx=2, pady=2)        
+
+        self.file_menu_frame.pack(sid=tk.TOP, fill=tk.X, expand=False)        
+
+        # size menu
+
+        self.size_menu_frame = tk.Frame(self)
+
+        self.label_space_02a = tk.Label(self.size_menu_frame, width=13, text="")                
+        self.label_space_02a.pack(side=tk.LEFT, pady=2)
+        self.label_space_02b = tk.Label(self.size_menu_frame, width=0, text="Zoom:")                
+        self.label_space_02b.pack(side=tk.LEFT, pady=1)
+        
+        
+        self.button_down = tk.Button(self.size_menu_frame, bd=1, text="-", relief=tk.SOLID, width=1,
+                                     command=self.draw_image_down)
+        self.button_down.pack(side=tk.LEFT, pady=2)
+
+        if sys.platform == "darwin":
+            self.button_ratio = tkmacosx.Button(self.size_menu_frame, bd=0, bg="white", fg="black", text="1.00",
+                                                highlightbackground="white", activebackground="white", relief=tk.SOLID, borderless=1, width=45)
+        else:
+            self.button_ratio = tk.Button(self.size_menu_frame, bd=1, bg="white", fg="black", text="1.00",
+                                          highlightbackground="white", activebackground="white", relief=tk.SOLID, width=2)
+            
+        self.button_ratio.pack(side=tk.LEFT, pady=2)
+
+        self.button_up = tk.Button(self.size_menu_frame, bd=1, text="+", relief=tk.SOLID, width=1,
+                                   command=self.draw_image_up)
+        self.button_up.pack(side=tk.LEFT, pady=2)
+
+        
+        self.label_space_02a = tk.Label(self.size_menu_frame, width=1, text="")                
+        self.label_space_02a.pack(side=tk.LEFT, pady=1)
+
+        self.combo_ratio_option = ["2.00", "1.50", "1.00", "0.90", "0.80", "0.70", "0.60", "0.50", "0.40", "0.30", "0.20", "0.10", "0.05"]
+        self.combo_ratio_variable = tk.StringVar()
+        self.combo_ratio = ttk.Combobox(self.size_menu_frame, values=self.combo_ratio_option,
+                                        textvariable=self.combo_ratio_variable, state="normal", justify='center', width=3, height=13)
+
+        self.combo_ratio.current(2)
+        
+        style=ttk.Style()
+        style.theme_use("clam")
+        style.configure("SSS.TCombobox", foreground='black', selectforeground="black", selectbackground="lightgray",
+                        fieldbackground="lightgray", bordercolor="black", padding=4)
+        self.combo_ratio.configure(style="SSS.TCombobox")
+        
+        self.combo_ratio.pack(side=tk.LEFT, pady=2)
+
+        def fff(event):
+            idx = self.combo_ratio.current()
+            val = self.combo_ratio_option[idx]
+            print("COMBOBOX", idx, val)
+            self.combo_ratio.set(val)
+            
+        self.combo_ratio_button = tk.Button(self.size_menu_frame, bd=1, text="=", relief=tk.SOLID, width=1,
+                                            command=self.draw_image_selected)
+        self.combo_ratio_button.pack(side=tk.LEFT, pady=2)
+
+        self.combo_ratio.bind('<<ComboboxSelected>>', fff)
+
+        # line width
+
+        self.label_space_02c = tk.Label(self.size_menu_frame, width=1, text="")                
+        self.label_space_02c.pack(side=tk.LEFT, pady=2)
+        self.label_space_02d = tk.Label(self.size_menu_frame, width=0, text="LW:")                
+        self.label_space_02d.pack(side=tk.LEFT, pady=2)
+
+        self.button_lw_down = tk.Button(self.size_menu_frame, bd=1, text="-", relief=tk.SOLID, width=1,
+                                        command=self.draw_lw_down)
+        self.button_lw_down.pack(side=tk.LEFT, pady=2)
+
+        if sys.platform == "darwin":
+            self.button_lw = tkmacosx.Button(self.size_menu_frame, bd=0, bg="white", fg="black", text="{:d}".format(self.lw),
+                                             highlightbackground="white", activebackground="white", relief=tk.SOLID, borderless=1, width=45)
+        else:
+            self.button_lw = tk.Button(self.size_menu_frame, bd=1, bg="white", fg="black", text="{:d}".format(self.lw),
+                                       highlightbackground="white", activebackground="white", relief=tk.SOLID, width=2)
+
+        self.button_lw.pack(side=tk.LEFT, pady=2)
+
+        self.button_lw_up = tk.Button(self.size_menu_frame, bd=1, text="+", relief=tk.SOLID, width=1,
+                                      command=self.draw_lw_up)
+        self.button_lw_up.pack(side=tk.LEFT, pady=2)
+
+        
+        # font size
+        self.label_space_02e = tk.Label(self.size_menu_frame, width=0, text="")                
+        self.label_space_02e.pack(side=tk.LEFT, pady=2)
+        self.label_space_02f = tk.Label(self.size_menu_frame, width=0, text="FS:")                
+        self.label_space_02f.pack(side=tk.LEFT, pady=2)
+
+        self.button_fs_down = tk.Button(self.size_menu_frame, bd=1, text="-", relief=tk.SOLID, width=1,
+                                        command=self.draw_fs_down)
+        self.button_fs_down.pack(side=tk.LEFT, pady=2)
+
+        if sys.platform == "darwin":
+            self.button_fs = tkmacosx.Button(self.size_menu_frame, bd=0, bg="white", fg="black", text=self.fs,
+                                             highlightbackground="white", activebackground="white", relief=tk.SOLID, borderless=1, width=45)
+        else:
+            self.button_fs = tk.Button(self.size_menu_frame, bd=1, bg="white", fg="black", text=self.fs,
+                                       highlightbackground="white", activebackground="white", relief=tk.SOLID, width=2)
+            
+        self.button_fs.pack(side=tk.LEFT, pady=2)
+
+        self.button_fs_up = tk.Button(self.size_menu_frame, bd=1, text="+", relief=tk.SOLID, width=1,
+                                      command=self.draw_fs_up)
+        self.button_fs_up.pack(side=tk.LEFT, pady=2)
+
+        # coords
+        
+        self.label_space = tk.Label(self.size_menu_frame, width=3, text="")
+
+        self.label_r_x_ss = tk.Label(self.size_menu_frame, width=2, text="Rx:")
+        self.label_r_x = tk.Label(self.size_menu_frame, width=4, anchor="w", text="")
+
+        self.label_r_y_ss = tk.Label(self.size_menu_frame, width=2, text="Ry:")        
+        self.label_r_y = tk.Label(self.size_menu_frame, width=4, anchor="w", text="")
+
+        self.label_x0_ss = tk.Label(self.size_menu_frame, width=2, text="X0:")        
+        self.label_x0 = tk.Label(self.size_menu_frame, width=4, anchor="w", text="")
+
+        self.label_y0_ss = tk.Label(self.size_menu_frame, width=2, text="Y0:")
+        self.label_y0 = tk.Label(self.size_menu_frame, width=4, anchor="w", text="")
+        
+        self.label_x1_ss = tk.Label(self.size_menu_frame, width=2, text="X1:")
+        self.label_x1 = tk.Label(self.size_menu_frame, width=4, anchor="w", text="")
+
+        self.label_y1_ss = tk.Label(self.size_menu_frame, width=2, text="Y1:")        
+        self.label_y1 = tk.Label(self.size_menu_frame, width=4, anchor="w", text="")
+        
+        self.label_space.pack(side=tk.LEFT, pady=2)
+        
+        self.label_r_x_ss.pack(side=tk.LEFT, pady=2)        
+        self.label_r_x.pack(side=tk.LEFT, pady=2)
+
+        self.label_r_y_ss.pack(side=tk.LEFT, pady=2)                
+        self.label_r_y.pack(side=tk.LEFT, pady=2)
+
+        self.label_x0_ss.pack(side=tk.LEFT, pady=2)        
+        self.label_x0.pack(side=tk.LEFT, pady=2)
+        
+        self.label_y0_ss.pack(side=tk.LEFT, pady=2)        
+        self.label_y0.pack(side=tk.LEFT, pady=2)
+
+        self.label_x1_ss.pack(side=tk.LEFT, pady=2)
+        self.label_x1.pack(side=tk.LEFT, pady=2)
+
+        self.label_y1_ss.pack(side=tk.LEFT, pady=2)                
+        self.label_y1.pack(side=tk.LEFT, pady=2)        
+
+        self.size_menu_frame.pack(sid=tk.TOP, fill=tk.X, expand=False)
+
+        #####
+        
+        # category menu
+
+        self.cat_menu_frame = tk.Frame(self)
+
+        self.label_space_03a = tk.Label(self.cat_menu_frame, width=13, text="")                
+        self.label_space_03a.pack(side=tk.LEFT, pady=2)
+
+        w_r = 8
+        p_x = 2
+        p_y = 3
+        
+        self.reg_val = tk.IntVar(value=1)        
+
+        self.radio_square = tk.Radiobutton(self.cat_menu_frame, anchor=tk.CENTER, text="Sqr", value=1, variable=self.reg_val,
+                                           command=self.set_region_type)
+        self.radio_square.config(fg="green", bd=0, bg="lightgreen", highlightbackground="green",
+                                 activebackground="green", activeforeground="white", relief=tk.SOLID, width=w_r)                
+        self.radio_square.pack(side=tk.LEFT, padx=p_x, pady=p_y)
+
+        self.radio_square = tk.Radiobutton(self.cat_menu_frame, anchor=tk.CENTER, text="Rect", value=2, variable=self.reg_val,
+                                           command=self.set_region_type)
+        self.radio_square.config(fg="green", bd=0, bg="lightgreen", highlightbackground="green",
+                                 activebackground="green", activeforeground="white", relief=tk.SOLID, width=w_r)                        
+        self.radio_square.pack(side=tk.LEFT, padx=p_x, pady=p_y)
+
+        
+        self.label_space_03 = tk.Label(self.cat_menu_frame, width=3, text="")                
+        self.label_space_03.pack(side=tk.LEFT, pady=2)
+
+        w_r = 5
+        p_x = 2
+        p_y = 3
+
+        self.cat_val = tk.IntVar(value=0)
+
+        self.radio_cat = []
+
+        num_cat = 16
+        palette = glasbey.extend_palette(
+            ["#FF0000", # red
+             "#0000FF", # blue
+             "#00FF00", # green
+             ],
+            palette_size=num_cat,
+            colorblind_safe=False,
+            )
+
+        # palette = glasbey.create_palette(
+        #     palette_size=num_cat,
+        #     colorblind_safe=False
+        #     )
+
+        #palette = varibow_hex(num_cat)
+
+        palette = ["#FF0000", # red
+                   #"#A52A2A", # brown
+                   "#800000", # maroon
+                   "#FF00FF", # magenta
+                   "#9A0EEA", # violet                   
+                   "#0343DF", # blue
+                   "#20C0C0", # turquoise                                      
+                   "#00FFFF", # cyan
+                   #"#7FFFD4", # aquamarine
+                   "#00FF00", # green
+                   "#15B01A", # green
+                   "#808000", # olive
+                   "#9ACD32", # yellowgreen
+                   "#FFFF00", # yellow
+                   "#FFD700", # gold                                      
+                   #"#F97306", # orange
+                   "#FFA500", # orange
+                   "#FF796C", # salmon
+                   "#D2691E", # chocolate
+                    ]
+
+        # palette = [
+        #     "#BB2741",
+        #     "#EA40A5",
+        #     "#EA40A5",
+        #     "#AA61C6",
+        #     "#7414F5",
+        #     "#2E1893",
+        #     "#404BC4",
+        #     "#7FA9F9",
+        #     "#2D6995",
+        #     "#61C9CA",
+        #     "#86FCCC",
+        #     "#5B976B",
+        #     "#5CC93F",
+        #     "#88FC55",
+        #     "#6F983F",
+        #     "#BACB6C",
+        #     "#FBE64D",
+        #     "#916729",
+        #     "#BF6D47",
+        #     "#EE7B77",
+        # ]
+
+        palette.append("#FFFFFF")
+        palette.append("#CCCCCC")        
+        palette.append("#888888")
+        palette.append("#444444")                        
+        palette.append("#000000")
+        
+        #print("PALETET(DEFAULT)", palette)
+
+        filename_colors = self.dirname + "/" + "colors.txt"
+        
+        pp = pathlib.Path(filename_colors)
+        if not pp.exists():
+            fp = open(filename_colors, "wt")
+            for k, c in enumerate(palette):
+                print(f"{k}:{c}:{hex2bgr(c)}", file=fp)
+            fp.close()
+
+            print("PALETTE --> ", filename_colors)            
+
+        else:
+
+            pt = []
+            fp = open(filename_colors, "rt")
+            for line in fp:
+                line = line.rstrip()
+                #print(line)
+                m = re.match(r"(\d+):(\#.+):\((\d+), (\d+), (\d+)\)", line)
+                if m:
+                    k = int(m.group(1))
+                    hex = m.group(2)
+                    b = int(m.group(3))
+                    g = int(m.group(4))
+                    r = int(m.group(5))
+
+                    #print(k, hex, b, g, r)
+
+                    pt.append(hex)
+                    
+            #print("PALETTE(LOADED)", pt)
+
+            fp.close()
+          
+            palette = pt
+
+            print("PALETTE <-- ", filename_colors)                        
+
+        palette_bgr = []
+        for hex in palette:
+            palette_bgr.append(hex2bgr(hex))
+            
+        num_cat = len(palette)
+
+        for k in range(num_cat):
+            k_ss = str(k)
+            col = palette[k]
+
+            cat = tk.Radiobutton(self.cat_menu_frame, text=k_ss, value=k, variable=self.cat_val, command=self.set_category)
+
+            fg = "black"
+            if col == "#000000":
+                fg = "white"
+            if col == "#0000FF":
+                fg = "white"
+
+            cat.config(fg=fg, bd=0, bg=col, relief=tk.SOLID, width=w_r,
+                       highlightcolor="black", highlightthickness=1)
+            cat.pack(side=tk.LEFT, padx=p_x, pady=p_y)
+            
+            self.radio_cat.append(cat)
+        
+        self.cat_menu_frame.pack(side=tk.TOP, fill=tk.X, expand=False)
+
+        self.radio_cat[0].select()
+
+        ####
+
+        self.colors = palette
+        self.colors_bgr = palette_bgr
+
+        self.canvas_frame = tk.Frame(self)
+
+        self.ratio = 1.0
+
+        # left image
+        self.image_bgr_00 = cv2.imread(self.filename) #
+        self.image_bgr_0 = self.image_bgr_00.copy()
+        
+        #self.image_gray_0 = cv2.cvtColor(self.image_bgr_0, cv2.COLOR_BGR2GRAY) # BGR -> GRAY
+        self.image_rgb_0 = cv2.cvtColor(self.image_bgr_0, cv2.COLOR_BGR2RGB) # BGR -> RGB
+
+        self.h_0, self.w_0, self.c_0 = self.image_bgr_0.shape
+        
+        self.image_pil_0 = Image.fromarray(self.image_rgb_0) # RGB -> PIL
+
+        self.canvas_0 = ScrollableCanvasFrame(self.canvas_frame, self.w_0, self.h_0)
+
+        self.canvas_0.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+
+        self.x0 = 0
+        self.y0 = 0
+        self.x1 = 0
+        self.y1 = 0
+        
+        ####
+
+        self.hh_0 = int(self.h_0*self.ratio)
+        self.ww_0 = int(self.w_0*self.ratio)
+
+        self.image_pil_0_scaled = self.image_pil_0.resize((self.ww_0, self.hh_0), Image.Resampling.NEAREST)
+        self.image_tk_0 = ImageTk.PhotoImage(self.image_pil_0_scaled) # -> ImagekT
+
+        self.canvas_0.image_on_canvas_0 = self.canvas_0.canvas.create_image(0, 0, anchor="nw", image=self.image_tk_0)
+
+        self.canvas_frame.pack(fill=tk.BOTH, expand=True)
+
+        self.canvas_0.canvas.bind("<ButtonPress-1>", self.get_start_point)
+        self.canvas_0.canvas.bind("<Button1-Motion>", self.draw_rectangle)
+        self.canvas_0.canvas.bind("<ButtonRelease-1>", self.get_end_point)
+
+        self.canvas_0.canvas.bind("<ButtonPress-2>", self.del_rectangle) # 3?
+
+        self.canvas_0.canvas.bind("<ButtonPress-4>", self.mouse_scroll_vertical_up) # UP
+        self.canvas_0.canvas.bind("<ButtonPress-5>", self.mouse_scroll_vertical_down) # DOWN
+        
+        #self.canvas_0.sb_y.bind("<ButtonPress-4>", self.mouse_scroll_vertical) # <MouseWheel> does not work
+        #self.canvas_0.sb_y.bind("<ButtonPress-5>", self.mouse_scroll_vertical) # <MouseWheel> does not work
+
+        self.canvas_0.canvas.bind("<Shift-ButtonPress-4>", self.mouse_scroll_horizontal_ll) # LEFT
+        self.canvas_0.canvas.bind("<Shift-ButtonPress-5>", self.mouse_scroll_horizontal_rr) # RIGHT
+
+        #self.canvas_0.sb_x.bind("<Shift-ButtonPress-4>", self.mouse_scroll_horizontal) # <MouseWheel> does not work        
+        #self.canvas_0.sb_x.bind("<Shift-ButtonPress-5>", self.mouse_scroll_horizontal) # <MouseWheel> does not work
+
+        self.canvas_0.canvas.bind_all("<MouseWheel>", self.on_vertical)
+        self.canvas_0.canvas.bind_all("<Shift-MouseWheel>", self.on_horizontal)
+
+        self.canvas_0.canvas.bind_all("<Control-MouseWheel>", self.zoom_in_out)
+
+        #self.canvas_0.canvas.bind_all("<Motion>", self.zoom_out)               
+
+    def zoom_in_out(self, event):
+
+        # print("ZOOM IN OUT", event.delta)
+        # print(str(event))
+
+        if event.delta > 0:
+            self.draw_image_up()
+        else:
+            self.draw_image_down()
+            
+    def on_vertical(self, event):
+        #print("ON_VERTICAL")
+        self.canvas_0.canvas.yview_scroll(-1 * event.delta, 'units')
+    
+    def on_horizontal(self, event):
+        #print("ON_HORIZONTAL")        
+        self.canvas_0.canvas.xview_scroll(-1 * event.delta, 'units')
+
+    def mouse_scroll_vertical_up(self, event):
+
+        #print("SCROLL VERTICAL UP")
+
+        start,end = self.canvas_0.sb_y.get()
+        #print(start, end)
+
+        if start > 0:
+            self.canvas_0.canvas.yview_scroll(-1, "units")
+            #self.canvas_0.sb_y.set(start-0.1, end-0.1)            
+            
+    def mouse_scroll_vertical_down(self, event):
+
+        #print("SCROLL VERTICAL DOWN")
+
+        start,end = self.canvas_0.sb_y.get()
+        #print(start, end)
+
+        if end < 1.0:
+            self.canvas_0.canvas.yview_scroll(+1, "units")
+            #self.canvas_0.sb_y.set(start+0.1, end+0.1)            
+
+            
+    def mouse_scroll_horizontal_ll(self, event):
+
+        #print("SCROLL HORIZONTAL LEFT")
+
+        start,end = self.canvas_0.sb_x.get()
+        #print(start, end)
+        
+        if start > 0:
+            self.canvas_0.canvas.xview_scroll(-1, "units")
+
+
+    def mouse_scroll_horizontal_rr(self, event):
+
+        #print("SCROLL HORIZONTAL RIGHT")
+
+        start,end = self.canvas_0.sb_x.get()
+        #print(start, end)
+        
+        if end < 1.0:
+            self.canvas_0.canvas.xview_scroll(+1, "units")
+
+            
+    def draw_image(self):
+
+        self.hh_0 = int(self.h_0*self.ratio)
+        self.ww_0 = int(self.w_0*self.ratio)
+        self.image_pil_0_scaled = self.image_pil_0.resize((self.ww_0, self.hh_0), Image.Resampling.NEAREST)
+        self.image_tk_0 = ImageTk.PhotoImage(self.image_pil_0_scaled) # -> ImageTk
+        
+        #self.canvas_0.canvas.create_image(0, 0, anchor="nw", image=self.image_tk_0)
+        self.canvas_0.canvas.itemconfig(self.canvas_0.image_on_canvas_0, image=self.image_tk_0)
+        self.canvas_0.canvas.config(scrollregion=(0, 0, self.ww_0, self.hh_0))
+
+        #print(self.hh_0, self.ww_0)                
+
+        # items
+        items = self.canvas_0.canvas.find_all()
+
+        for id in items:
+            
+            #print(id, self.canvas_0.canvas.type(id))
+
+            if self.canvas_0.canvas.type(id) == "rectangle":
+                #x0, y0, x1, y1 = self.canvas_0.canvas.bbox(id)
+                if id in self.RID:
+                    x0, y0, x1, y1 = self.RID[id]                
+                    #print(x0, y0, x1, y1)
+
+                    x0 = int(x0 * self.ratio)
+                    y0 = int(y0 * self.ratio)
+                    x1 = int(x1 * self.ratio)
+                    y1 = int(y1 * self.ratio)
+
+                    ww = int(self.lw * self.ratio)
+                    if ww < self.lw_min:
+                        ww = self.lw_min
+
+                    self.canvas_0.canvas.coords(id, x0, y0, x1, y1)
+
+                    if self.ratio <= 0.200001:
+                        self.canvas_0.canvas.itemconfig(id, width=ww)
+                    elif self.ratio <= 0.500001:
+                        self.canvas_0.canvas.itemconfig(id, width=ww)                        
+                    else:
+                        self.canvas_0.canvas.itemconfig(id, width=ww)
+                        
+                else:
+                    print(id, self.canvas_0.canvas.type(id), " ???")
+                    
+            elif self.canvas_0.canvas.type(id) == "text":
+
+                if id in self.TID:
+
+                    x0, y0 = self.TID[id]
+ 
+                    x0 = int(x0 * self.ratio)
+                    y0 = int(y0 * self.ratio)
+
+                    ww = int(self.lw * self.ratio)
+                    if ww < self.lw_min:
+                        ww = self.lw_min
+                    uu = int(ww/2.0)
+                    #vv = int(ww*3.0)
+
+                    # if vv > self.fs_max:
+                    #     vv = self.fs_max
+
+                    self.canvas_0.canvas.coords(id, x0-uu, y0-uu)
+                    self.canvas_0.canvas.itemconfig(id, font=("Arial", self.fs))
+
+                else:
+                    print(id, self.canvas_0.canvas.type(id), " ???")                    
+                    
+
+    def draw_image_up(self):
+
+        if self.ratio < 2.0:
+            self.ratio += self.ratio_d
+        #print("UP", "{:.1f}".format(self.ratio))
+
+            self.button_ratio.config(text="{:.2f}".format(self.ratio))
+            self.combo_ratio.set("")            
+
+            self.draw_image()
+
+    def draw_image_down(self):
+
+        if self.ratio > self.ratio_d:
+            self.ratio -= self.ratio_d
+        #print("DOWN", "{:.1f}".format(self.ratio))
+
+        #if self.ratio > 0.001:
+
+        self.button_ratio.config(text="{:.2f}".format(self.ratio))
+        self.combo_ratio.set("")
+        
+        self.draw_image()
+
+    def draw_image_selected(self):
+
+        print("COMBOBOX BUTTON")        
+
+        idx = self.combo_ratio.current()
+
+        if idx >= 0 and idx < len(self.combo_ratio_option):
+            val = self.combo_ratio_option[idx]
+        else:
+            val = self.combo_ratio.get()
+
+        if val == "":
+            return
+            
+        #print("COMBOBOX BUTTON", idx, val)
+        self.combo_ratio.set(val)
+
+        self.ratio = float(val)
+
+        if self.ratio > 0.001:
+
+            self.button_ratio.config(text="{:.2f}".format(self.ratio))
+            
+            self.draw_image()
+
+
+    def draw_lw_up(self):
+        
+        self.lw += self.lw_d
+        #print("UP", "{:.1f}".format(self.ratio))
+
+        self.button_lw.config(text="{:d}".format(self.lw))
+
+        self.draw_image()
+
+    def draw_lw_down(self):
+
+        if self.lw > self.lw_d:
+            self.lw -= self.lw_d
+        #print("DOWN", "{:.1f}".format(self.ratio))
+
+        if self.lw > 0:
+
+            self.button_lw.config(text="{:d}".format(self.lw))
+            
+            self.draw_image()
+
+    def draw_fs_up(self):
+        
+        self.fs += self.fs_d
+        #print("UP", "{:.1f}".format(self.ratio))
+
+        self.button_fs.config(text="{:d}".format(self.fs))
+
+        self.draw_image()
+
+    def draw_fs_down(self):
+
+        if self.fs > self.fs_d:
+            self.fs -= self.fs_d
+        #print("DOWN", "{:.1f}".format(self.ratio))
+
+        if self.fs > 1:
+
+            self.button_fs.config(text="{:d}".format(self.fs))
+            
+            self.draw_image()
+            
+            
+            
+    def load_rectangles(self):
+
+        count_img_max = {} # [0] * 10
+
+        pp = pathlib.Path(self.dirname)
+        for pathname in sorted(pp.iterdir()):
+            
+            pp_cat = pathlib.Path(pathname)
+            pp_cat_name = pp_cat.name
+            
+            m1 = re.match(r"Category(\d+)", pp_cat_name)
+            if m1:
+                cat = int(m1.group(1))
+                #print(pathname, basename, cid)
+                #print("PATHNAME", pathname)
+
+                qq = pathlib.Path(pathname)
+                for pathname_rect in qq.iterdir():
+
+                    qq_rect = pathlib.Path(pathname_rect)
+                    qq_rect_name = qq_rect.name
+
+                    filename_img = str(pathname_rect)
+
+                    #print(pathname_rect, qq_rect_name)
+                    #print(qq_rect_name)                                        
+
+                    m2 = re.search(r"C(\d+)-(\d+)-(\d+)-(\d+)-(\d+)-(\d+)-", qq_rect_name)                    
+                    if m2:
+
+                        cat_file = int(m2.group(1))
+                        num = int(m2.group(2))
+                        x0 = int(m2.group(3))
+                        y0 = int(m2.group(4))
+                        x1 = int(m2.group(5))
+                        y1 = int(m2.group(6))
+                        #r_x = int(m2.group(7))
+                        #r_y = int(m2.group(8))
+                        
+                        #print(cat, num, x0, y0, x1, y1)
+
+                        color = self.colors[cat]
+                        color_bgr = self.colors_bgr[cat]
+                        
+                        #self.rid = self.canvas_0.canvas.create_rectangle(x0-2, y0-2, x1+2, y1+2, outline=color, width=3)
+
+                        x0r = int((x0)*self.ratio)
+                        y0r = int((y0)*self.ratio)
+                        x1r = int((x1+1)*self.ratio)
+                        y1r = int((y1+1)*self.ratio)
+
+                        ww = int(self.lw * self.ratio)
+                        if ww < self.lw_min:
+                            ww = self.lw_min
+                        uu = int(ww/2.0)
+                        #vv = int(ww*3.0)
+
+                        # if vv > self.fs_max:
+                        #     vv = self.fs_max
+
+                        self.rid = self.canvas_0.canvas.create_rectangle(x0r, y0r, x1r, y1r, outline=color, width=ww)
+                        tid = self.canvas_0.canvas.create_text(x0r-uu, y0r-uu, text=str(num), font=("Arial", self.fs), anchor="sw")
+
+                        self.RID[self.rid] = [x0, y0, x1, y1]
+                        self.TID[tid] = [x0, y0]
+                        self.CID[self.rid] = cat # rid -> cat
+                        self.RID2TID[self.rid] = tid
+                        self.TID2RID[tid] = self.rid
+
+                        self.FILENAMES[self.rid] = filename_img
+                        #print(self.rid, " --> ", filename_img)
+                        
+                        
+                        # CV2
+                        fontface = cv2.FONT_HERSHEY_DUPLEX
+                        #fontface = cv2.FONT_HERSHEY_SIMPLEX
+                        fontscale = 0.6
+                        cv2.rectangle(self.image_bgr_0, (x0, y0), (x1, y1), color=color_bgr, thickness=self.lw)
+                        cv2.putText(self.image_bgr_0, str(num), (x0-5, y0-10), fontface, fontscale,
+                                    color=(0, 0, 0), thickness=1, lineType=cv2.LINE_AA)                        
+
+                        #print("R/T")
+            
+                        if not cat in count_img_max:
+                            count_img_max[cat] = 0
+
+                        if count_img_max[cat] < num:
+                            count_img_max[cat] = num
+
+        for k,v in count_img_max.items():
+            self.count_img[k] = v+1
+            print(f"C{k:02}", v+1)
+                            
+    #####
+
+    def del_rectangle(self, event):
+
+        print("del_rectangle")
+
+        items = self.canvas_0.canvas.find_all()
+        #print(items)
+
+        event_x = int(self.canvas_0.canvas.canvasx(event.x))
+        event_y = int(self.canvas_0.canvas.canvasy(event.y))
+
+        # event_x and event_y are not effected by scrolling
+
+        print("EVENT_X/Y", event_x, event_y, event.x, event.y) # values are multiplied by self.ratio
+
+        rid = -1
+        x0_min = 0
+        #x1_min = int(self.canvas_0.canvas.winfo_width()*self.ratio)
+        #x1_min = int(self.canvas_0.canvas.winfo_width())
+        x1_min = int(self.w_0*self.ratio)
+        y0_min = 0
+        #y1_min = int(self.canvas_0.canvas.winfo_height()*self.ratio)
+        #y1_min = int(self.canvas_0.canvas.winfo_height())
+        y1_min = int(self.h_0*self.ratio)
+
+        print("MIN", x0_min, y0_min, x1_min, y1_min)        
+        
+        for id in items:
+
+            if self.canvas_0.canvas.type(id) == "rectangle":            
+                x0, y0, x1, y1 = self.RID[id]
+                cat = self.CID[id]
+                #print("S", id, cat, x0, y0, x1, y1)
+
+                x0_r = int(x0*self.ratio)
+                x1_r = int(x1*self.ratio)                
+                y0_r = int(y0*self.ratio)
+                y1_r = int(y1*self.ratio)
+
+                #print("R", id, cat, x0_r, y0_r, x1_r, y1_r)                
+                
+                if event_x >= x0_r and event_x <= x1_r and event_y >= y0_r and event_y <= y1_r:
+
+                    if x0_r > x0_min and x1_r < x1_min and y0_r > y0_min and y1_r < y1_min:
+
+                        x0_min = x0_r
+                        x1_min = x1_r
+                        y0_min = y0_r
+                        y1_min = y1_r
+
+                        rid = id
+
+                        print(rid)
+
+            '''
+            elif self.canvas_0.canvas.type(id) == "text":
+
+                rid_t = self.TID2RID[id]
+                cat_t = self.CID[rid_t]
+
+                ss = self.canvas_0.canvas.itemcget(id, "text")
+                print("TEXT", id, cat_t, ss)
+            '''
+            
+
+        if rid != -1:
+
+            x0, y0, x1, y1 = self.RID[rid]
+            tid = self.RID2TID[rid]
+            t_x0, t_y0 = self.TID[tid]
+            cat = self.CID[rid]
+            num = self.canvas_0.canvas.itemcget(tid, "text")
+            num = int(num)
+
+            filename_img = self.FILENAMES[rid]
+            
+            print("DEL:", "C{:02d}-{:04d}".format(cat, int(num)), x0, y0, x1, y1, t_x0, t_y0)
+            #print(filename_img)
+
+            res = messagebox.askokcancel("", "Delete C{:02d}-{:04d}".format(cat, int(num)))
+
+            if res:
+
+                subdirname = self.dirname + "/Category{:02d}".format(cat)            
+                print(subdirname)
+
+                pp = pathlib.Path(filename_img)
+                filename_png = pp.name
+                print(filename_png)
+
+                rmdirname = subdirname + "/" + "_REMOVED"
+                qq = pathlib.Path(rmdirname)
+                if not qq.exists():
+                    qq.mkdir(parents=True)
+
+                filename_rm = rmdirname + "/" + filename_png
+                #print(filename_rm)
+
+                if pp.exists():
+                
+                    pp_rm = pathlib.Path(filename_rm)
+                    pp.rename(pp_rm)
+
+                    # for k in range(1000):
+                    #     v = pp.exists()
+                    #     if not v:
+                    #         break
+                    
+                else:
+
+                    print("DEL:", str(pp), "not exists")
+
+
+                self.canvas_0.canvas.delete(rid)
+                self.canvas_0.canvas.delete(tid)
+
+                self.canvas_0.canvas.update_idletasks()
+
+                #print("D0", self.RID2TID)                
+
+                self.RID.pop(rid)
+                self.TID.pop(tid)
+                self.CID.pop(rid)
+                self.RID2TID.pop(rid)
+                self.TID2RID.pop(tid)
+                self.FILENAMES.pop(rid)
+                
+                #print("D1", self.RID2TID)
+
+        # items = self.canvas_0.canvas.find_all()
+        # print(items)
+        
+        return
+
+    
+
+    def get_start_point(self, event):
+
+        #print("start ", end="")
+        #print("start")
+
+        event_x = int(self.canvas_0.canvas.canvasx(event.x))
+        event_y = int(self.canvas_0.canvas.canvasy(event.y))
+
+        if event_x < 0:
+            return
+
+        if event_y < 0:
+            return
+
+        #self.x0, self.y0 = event.x, event.y
+        self.x0 = event_x
+        self.y0 = event_y
+        self.r = 0
+
+        x0_r = int(self.x0/self.ratio)
+        y0_r = int(self.y0/self.ratio)
+
+        self.label_x0["text"] = x0_r
+        self.label_y0["text"] = y0_r
+        self.label_r_x["text"] = "0"
+        self.label_r_y["text"] = "0"
+
+        ww = int(self.lw * self.ratio)
+        if ww < self.lw_min:
+            ww = self.lw_min
+        uu = int(ww/2.0)
+        #vv = int(ww*3.0)
+
+        # if vv > self.fs_max:
+        #     vv = self.fs_max
+            
+        color = self.colors[self.category]
+        self.rid = self.canvas_0.canvas.create_rectangle(event_x, event_y, event_x+1, event_y+1, outline=color, width=ww)
+
+        cat = self.category
+        if not cat in self.count_img:
+            self.count_img[cat] = 0
+        cc = self.count_img[cat]
+
+        x0_t = self.x0
+        y0_t = self.y0
+        self.tid = self.canvas_0.canvas.create_text(x0_t-uu, y0_t-uu, text=str(cc), font=("Arial", self.fs), anchor="sw")        
+
+        #print(event_x, event_y)
+
+
+    def draw_rectangle(self, event):
+
+        #print("rect")
+
+        event_x = int(self.canvas_0.canvas.canvasx(event.x))
+        event_y = int(self.canvas_0.canvas.canvasy(event.y))
+
+        self.label_x1["text"] = event_x
+        self.label_y1["text"] = event_y
+
+        if event_x < 0:
+            self.x1 = 0
+        else:
+            self.x1 = min(self.w_0 * self.ratio, event_x)
+            
+        if event_y < 0:
+            self.y1 = 0
+        else:
+            self.y1 = min(self.h_0 * self.ratio, event_y)
+
+        #self.r = min(abs(self.x1-self.x0), abs(self.y1-self.y0))
+
+        x0_r = int(self.x0/self.ratio)
+        y0_r = int(self.y0/self.ratio)
+        x1_r = int(self.x1/self.ratio)
+        y1_r = int(self.y1/self.ratio)
+
+        self.r = min(abs(x1_r-x0_r), abs(y1_r-y0_r))
+        self.r_x = abs(x1_r-x0_r)
+        self.r_y = abs(y1_r-y0_r)
+
+        self.label_x0["text"] = x0_r+2
+        self.label_y0["text"] = y0_r+2
+        self.label_x1["text"] = x1_r-2
+        self.label_y1["text"] = y1_r-2
+        self.label_r_x["text"] = self.r_x-3
+        self.label_r_y["text"] = self.r_y-3
+        
+        #print(self.x0, self.y0, self.x1, self.y1, self.r)
+
+        if self.region_type == 1: # Square        
+
+            if self.x0 > self.x1:
+                rx = -1 * self.r * self.ratio
+            else:
+                rx = self.r * self.ratio
+
+            if self.y0 > self.y1:
+                ry = -1 * self.r * self.ratio
+            else:
+                ry = self.r * self.ratio
+
+            self.canvas_0.canvas.coords(self.rid, self.x0, self.y0, self.x0+rx, self.y0+ry)                  
+
+        elif self.region_type == 2: # Rectangle
+
+            self.canvas_0.canvas.coords(self.rid, self.x0, self.y0, self.x1, self.y1)                              
+
+
+    def get_end_point(self, event):
+
+        #print("end ", end="")
+        #print("end ")
+        
+        #self.draw_rectangle(event)
+
+        cat = self.category
+
+        """
+        cat = self.category
+        if not cat in self.count_img:
+            self.count_img[cat] = 0
+        cc = self.count_img[cat]
+            
+        self.tid = self.canvas_0.canvas.create_text(self.x0, self.y0, text=str(cc), font=("Arial", 10), anchor="sw")        
+        """
+        
+        self.x0, self.y0, self.x1, self.y1 = self.canvas_0.canvas.coords(self.rid)
+        #self.r = min(abs(self.x1-self.x0), abs(self.y1-self.y0))
+
+        print(self.x0, self.y0, self.x1, self.y1)
+
+        x0_r = int(self.x0/self.ratio)
+        y0_r = int(self.y0/self.ratio)
+        x1_r = int(self.x1/self.ratio)
+        y1_r = int(self.y1/self.ratio)
+
+        self.r = min(abs(x1_r-x0_r), abs(y1_r-y0_r))
+        self.r_x = abs(x1_r-x0_r)
+        self.r_y = abs(y1_r-y0_r)
+
+        self.label_x0["text"] = x0_r+2
+        self.label_y0["text"] = y0_r+2
+        self.label_x1["text"] = x1_r-2
+        self.label_y1["text"] = y1_r-2
+        self.label_r_x["text"] = self.r_x-3
+        self.label_r_y["text"] = self.r_y-3
+        
+        #print(self.x0, self.y0, self.x1, self.y1, self.r)
+
+        if self.r < 4:
+            self.canvas_0.canvas.delete(self.rid)
+            self.canvas_0.canvas.delete(self.tid)            
+            return
+
+        # with confirmation
+        res = messagebox.askokcancel("", "(" + str(x0_r+2) + ", " + str(y0_r+2) + ", " + str(x1_r-2) + ", " + str(y1_r-2) + ") " + "\n"
+                                  + " r_x:" + str(self.r_x-3) + " r_y:" + str(self.r_y-3) + " c:" + str(self.category))
+
+        # # without confirmation
+        # res = True
+        
+        if not res:
+            self.canvas_0.canvas.delete(self.rid)
+            self.canvas_0.canvas.delete(self.tid)            
+        else:
+            print("RECT")
+            print("(p0,p1):", int(self.x0), int(self.y0), int(self.x1), int(self.y1), int(self.r))
+
+            self.RID[self.rid] = [x0_r, y0_r, x1_r, y1_r]
+            self.TID[self.tid] = [x0_r, y0_r]
+            self.CID[self.rid] = cat # rid -> cat
+            self.RID2TID[self.rid] = self.tid
+            self.TID2RID[self.tid] = self.rid
+            
+            cc = self.count_img[cat]
+            rr = self.r-3 # between the pixels
+            r_x = self.r_x-3
+            r_y = self.r_y-3
+            
+            #print(cc)
+
+            cx0 = x0_r+2
+            cy0 = y0_r+2
+            cx1 = x1_r-1
+            cy1 = y1_r-1
+
+            subdirname = self.dirname + "/Category{:02d}".format(cat)
+
+            if not os.path.exists(subdirname):
+                os.mkdir(subdirname)
+            
+            filename_png = "{}_C{:02d}-{:04d}-{}-{}-{}-{}-{}-{}.png".format(self.stemname_nosp, cat, cc, cx0, cy0, cx1-1, cy1-1, r_x, r_y)
+            filename_img = subdirname + "/" + filename_png
+            print(filename_img)
+
+            self.FILENAMES[self.rid] = filename_img
+            #print(self.rid, " --> ", filename_img)
+            
+            img = self.image_bgr_00[cy0:cy1, cx0:cx1]
+            cv2.imwrite(filename_img, img)
+
+            if not self.category in self.count_img:
+                self.count_img[self.category] = 0
+                
+            self.count_img[self.category] += 1
+            
+            
+    def set_category(self):
+        self.category = self.cat_val.get()
+        print("Category:", self.category)
+
+    def set_region_type(self):
+        self.region_type = self.reg_val.get()
+
+        if self.region_type == 1:
+            print("Square:", self.region_type)
+        elif self.region_type == 2:
+            print("Rectangle:", self.region_type)
+
+    def save_image(self):
+
+        # res = messagebox.askokcancel("", "Save snapshot")
+        # if not res:
+        #     return
+
+        self.canvas_0.canvas.delete("all")
+        self.canvas_0.image_on_canvas_0 = self.canvas_0.canvas.create_image(0, 0, anchor="nw", image=self.image_tk_0)
+        
+        self.image_bgr_0 = self.image_bgr_00.copy()                
+        
+        #self.draw_image()        
+
+        self.load_rectangles()
+
+        filename_save_eps = self.dirname + "/" + self.stemname_nosp + "_ROI" + ".eps"
+        filename_save_png = self.dirname + "/" + self.stemname_nosp + "_ROI" + ".png"
+        filename_save_jpg = self.dirname + "/" + self.stemname_nosp + "_ROI" + ".jpg"        
+        filename_save_png_01 = self.dirname + "/" + self.stemname_nosp + "_ROI_01" + ".png"
+
+        image_bgr_01 = cv2.resize(self.image_bgr_0, dsize=None, fx=0.1, fy=0.1)        
+        
+        print("Save")
+        print(filename_save_png)
+        print(filename_save_png_01)
+        
+        cv2.imwrite(filename_save_png_01, image_bgr_01)
+        cv2.imwrite(filename_save_png, self.image_bgr_0)
+        cv2.imwrite(filename_save_jpg, self.image_bgr_0)
+        
+        #cv2.imwrite(filename_save, self.image_tk_0)
+        #self.image_tk_0.save(filename_save)
+
+        # print("Save", filename_save_eps)
+        # self.canvas_0.canvas.postscript(file=filename_save_eps, height=self.h_0, width=self.w_0, colormode="color")
+
+    def save_html(self):
+
+        print("SAVE HTML")
+
+        filename_html = self.dirname + "/" + "rois.html"
+        print(filename_html)
+
+        fp_html = open(filename_html, "wt")
+        print_html_header(fp_html)
+
+        print("<h1>", file=fp_html)            
+        print(self.basename, file=fp_html)
+        print("</h1>", file=fp_html)
+
+        self.save_image()
+
+        filename_save_png = self.dirname + "/" + self.stemname_nosp + "_ROI" + ".png"
+        filename_save_png_rel = self.stemname_nosp + "_ROI" + ".png"        
+
+        ww = 500
+        make_html_img(fp_html, filename_save_png_rel, ww, filename_save_png_rel)
+                            
+        pp = pathlib.Path(self.dirname)
+        dirnames = list(pp.glob("Category*"))
+        dirnames.sort()
+        for cc in dirnames:
+            print(str(cc))
+
+            cc_ss = str(cc)
+            m = re.match(r".+/(.+)", cc_ss)
+            if m:
+                cc_ss = m.group(1)
+
+            print("<h4>", file=fp_html)            
+            print(cc_ss, file=fp_html)
+            print("</h4>", file=fp_html)            
+            
+            qq = pathlib.Path(cc)            
+            filenames = list(qq.glob("*png"))
+            filenames.sort()
+
+            ww = 50
+            for ff in filenames:
+                ff_ss = str(ff)
+                
+                print(ff_ss)
+                m = re.match(r".+/(Category\d+/.+_C\d+-(\d+).+)", ff_ss)
+                if m:
+                    filename_rel = m.group(1)
+                    rid = m.group(2)
+                    print(rid, filename_rel)
+
+                    make_html_img(fp_html, filename_rel, ww, rid)
+                    
+                #print(ff_ss, file=fp_html)
+                #print("<br>", file=fp_html)                
+                
+
+        print_html_footer(fp_html)
+
+    def count_rectangles(self):
+
+        print("COUNT")
+
+        items = self.canvas_0.canvas.find_all()
+
+        # for id in items:
+        #     cc = self.canvas_0.canvas.coords(id)
+        #     print("ID:{}".format(id), cc)
+
+        #print("ITEMS", items)
+
+        RECT = {}
+
+        for id in items:
+
+            if self.canvas_0.canvas.type(id) == "rectangle":
+                
+                rid = id
+                tid = self.RID2TID[rid]
+                cat = self.CID[rid]
+                filename_img = self.FILENAMES[rid]
+                num = self.canvas_0.canvas.itemcget(tid, "text")
+                num = int(num)
+                
+                if not cat in RECT:
+                    RECT[cat] = {}
+
+                RECT[cat][num] = rid
+
+
+        for cat, vals in sorted(RECT.items()):
+            count = 0
+            for num, rid in sorted(vals.items()):
+
+                count += 1
+                
+            print("C{:02d} {}".format(int(cat), count))
+
+            
+
+    def renumber_rectangles(self):
+
+        print("RENUMBER")
+
+        res = messagebox.askokcancel("", "Renumber rectangles")
+        if not res:
+            return
+        
+        items = self.canvas_0.canvas.find_all()
+
+        # print("ITEMS", items)
+        # for id in items:
+        #     tt = self.canvas_0.canvas.type(id)
+        #     print(id, tt)
+
+        #     if tt == "rectangle":
+        #         print(self.RID[id])
+
+        RECT = {}
+        
+        for id in items:
+            if self.canvas_0.canvas.type(id) == "rectangle":
+                
+                rid = id
+                tid = self.RID2TID[rid]
+                cat = self.CID[rid]
+                filename_img = self.FILENAMES[rid]
+                num = self.canvas_0.canvas.itemcget(tid, "text")
+                num = int(num)
+                
+                #print(rid, tid, cat, num, filename_img)
+
+                if not cat in RECT:
+                    RECT[cat] = {}
+
+                if not num in RECT[cat]:
+                    RECT[cat][num] = []
+
+                RECT[cat][num].append(rid)
+
+        #print(RECT)
+
+
+        for cat, vals in sorted(RECT.items()):
+            print("C{:02d}".format(int(cat)))
+
+            count = 0
+            for num, rr in sorted(vals.items()):
+
+                for rid in rr:
+
+                    if num == count:
+                        count += 1
+                        continue
+
+                    #print("{} --> {} : {}".format(num, count, rid))
+                    print("{} --> {}".format(num, count))                    
+                    tid = self.RID2TID[rid]
+                    self.canvas_0.canvas.itemconfig(tid, text=str(count))
+
+                    # filename
+
+                    filename_img = self.FILENAMES[rid]
+
+                    #print(filename_img)
+
+                    pp = pathlib.Path(filename_img)
+                    pp_name = pp.name
+                    pp_parent = pp.parent
+
+                    #print(pp_parent, pp_name)
+
+
+                    m = re.match(r"(.+_)C(\d+)-(\d+)-(.+)", pp_name)
+                    if m:
+
+                        #print(m.group(1), m.group(2), m.group(3))
+
+                        mg1 = m.group(1) # pp
+                        mg2 = m.group(2) # cat
+                        mg3 = m.group(3) # num                        
+                        mg4 = m.group(4) # coord                       
+
+                        filename_img_ren = str(pp_parent) + "/" + mg1 + "C{:02d}".format(cat) + "-" + "{:04d}".format(count) + "-" + mg4
+                        #print(filename_img_ren)
+
+                        if pp.exists():
+
+                            pp_ren = pathlib.Path(filename_img_ren)
+                            pp.rename(pp_ren)
+
+                        else:
+
+                            print("RENUMBER:", str(pp), "not exists")
+
+
+                    else:
+                        print("ERROR:", pp_name)
+
+
+                    count += 1
+                
+            self.count_img[cat] = count
+
+## util/html.py
+
+def print_html_header(fp_html):
+    print("<!DOCTYPE html>", file=fp_html)
+    print("<html>", file=fp_html)
+    print("<head>", file=fp_html)
+    print("<style>", file=fp_html)
+    print("body {", file=fp_html)
+    print("  font-family: \"Helvetica Neue\", \"Helvetica\", \"Arial\" ", file=fp_html)
+    print("}", file=fp_html)
+    print("</style>", file=fp_html)
+    print("</head>", file=fp_html)
+    print("<body>", file=fp_html)
+
+def print_html_footer(fp_html):
+    print("<br>", file=fp_html)    
+    print("</body>", file=fp_html)
+    print("</html>", file=fp_html)
+
+def make_html_txt(fp_html, filename_txt_rel, ss_title=""):
+    print("<a href=\"" + filename_txt_rel + "\">" + ss_title + "</a>", file=fp_html)
+
+def make_html_img(fp_html, filename_img_rel, ww, ss_title="", border_w=1):
+    print("<figure style=\"display:inline-block; margin:0px 0px 0px 0px;\">", file=fp_html)
+    print("<figcaption>", file=fp_html)
+    print("<b><font size='-2'\">{:}</font></b>".format(ss_title), file=fp_html)            
+    print("</figcaption>", file=fp_html)                        
+    print("<img style=\"margin:0px 0px 0px 0px;\" src=\"{}\" width=\"{}\" border=\"{}\">".format(filename_img_rel, ww, border_w), file=fp_html)
+    print("<figcaption>", file=fp_html)
+    print("</figcaption>", file=fp_html)                
+    print("</figure>", file=fp_html)
+            
+# def varibow(n):
+#     hues = np.linspace(0, 1, n, endpoint=False)
+#     colors = [plt.cm.hsv(h)[:3] for h in hues]
+#     return colors
+
+def varibow_hex(n):
+    hues = np.linspace(0, 1, n, endpoint=False)
+    colors = [plt.cm.hsv(h)[:3] for h in hues]  # RGB (0-1)
+
+    hex_colors = [
+        '#%02x%02x%02x' % tuple(int(c * 255) for c in color)
+        for color in colors
+    ]
+    return hex_colors
+
+
+def varibow_hex_alt(n, s=0.9, v=0.9):
+    hues = np.linspace(0, 1, n, endpoint=False)
+
+    hex_colors = []
+    for h in hues:
+        r, g, b = colorsys.hsv_to_rgb(h, s, v)
+        hex_colors.append('#%02x%02x%02x' % (
+            int(r * 255), int(g * 255), int(b * 255)
+        ))
+
+    return hex_colors
+
+def hex2bgr(hex_color):
+    hex_color = hex_color.lstrip('#')
+    
+    r = int(hex_color[0:2], 16)
+    g = int(hex_color[2:4], 16)
+    b = int(hex_color[4:6], 16)
+    
+    return (b, g, r)
+
+
+#####
+
+if __name__ == "__main__":
+
+    main()
+
